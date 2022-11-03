@@ -6,19 +6,24 @@ import '@chainlink/contracts/src/v0.8/ConfirmedOwner.sol';
 
 contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
     
+
+    string public testOne;
+    string public testTwo;
+
     // link variables
     using Chainlink for Chainlink.Request;
     bytes32 private jobId;
     uint256 private fee;
 
-    event RequestMultipleFulfilled(bytes32 indexed requestId, string name, string winner);
+    event RequestWinner(bytes32 indexed requestId, string id);
 
 
     uint gameCount = 1;
+    string matchBeingProcessed;
 
-    mapping (address => string) playerCurrentMatch;
-    mapping (string => bool) nameAvailable;
-    mapping (string => Match) matchList;
+    mapping (address => string) public playerCurrentMatch;
+    mapping (string => bool) public nameAvailable;
+    mapping (string => Match) public matchList;
 
     struct Match {
         address payable Hero;
@@ -31,7 +36,7 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
     constructor() ConfirmedOwner(msg.sender) {
         setChainlinkToken(0x326C977E6efc84E512bB9C30f76E30c160eD06FB);
         setChainlinkOracle(0x40193c8518BB267228Fc409a613bDbD8eC5a97b3);
-        jobId = '53f9755920cd451a8fe46f5087468395';
+        jobId = '7d80a6386ef543a3abb52817f6707e3b';
         fee = (1 * LINK_DIVISIBILITY) / 10; // 0,1 * 10**18 (Varies by network and job)
     }
 
@@ -108,38 +113,38 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
 
     // LINK FUNCTIONS
 
+   
     /**
-     * @notice Request mutiple parameters from the oracle in a single transaction
+     * Create a Chainlink request to retrieve API response, find the target
+     * data which is located in a list
      */
-    function requestMultipleParameters() public {
-        Chainlink.Request memory req = buildChainlinkRequest(
-            jobId,
-            address(this),
-            this.fulfillMultipleParameters.selector
-        );
-        // Need to update to use my own json
-        req.add('urlNAME', 'https://api.jsonbin.io/v3/qs/635f99d80e6a79321e3a292b');
-        req.add('pathNAME', 'NAME');
-        req.add('urlWINNER', 'https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD');
-        req.add('pathWINNER', 'WINNNER');
-        sendChainlinkRequest(req, fee); // MWR API.
+    function requestWinnerFromGameID(string memory arrayNumber) public returns (bytes32 requestId) {
+        Chainlink.Request memory req = buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
+
+        // require here to check caller is in game
+        require(keccak256(abi.encodePacked((matchBeingProcessed))) == keccak256(abi.encodePacked((""))));
+
+        // Set the URL to perform the GET request on
+        req.add('get', 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=10');
+        string memory requestString = string.concat(arrayNumber, ',id');
+        req.add('path', requestString); // Chainlink nodes 1.0.0 and later support this format
+
+        matchBeingProcessed = arrayNumber;
+        // Sends the request
+        return sendChainlinkRequest(req, fee);
     }
 
     /**
-     * @notice Fulfillment function for multiple parameters in a single request
-     * @dev This is called by the oracle. recordChainlinkFulfillment must be used.
+     * Receive the response in the form of string
      */
-    function fulfillMultipleParameters(
-        bytes32 requestId,
-        string memory nameResponse,
-        string memory winnerResponse
-
-    ) public recordChainlinkFulfillment(requestId) {
-        emit RequestMultipleFulfilled(requestId, nameResponse, winnerResponse);
-        // Need to convert winnerResponse to an address
-        matchList[nameResponse].winner = address(0);
-        winnerResponse = winnerResponse;
+    function fulfill(bytes32 _requestId, string memory _id) public recordChainlinkFulfillment(_requestId) {
+        emit RequestWinner(_requestId, _id);
+        testOne = _id;
+        
+        matchBeingProcessed = "";
+        // Move settle function to in here
     }
+
 
     /**
      * Allow withdraw of Link tokens from the contract
@@ -148,6 +153,13 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         LinkTokenInterface link = LinkTokenInterface(chainlinkTokenAddress());
         require(link.transfer(msg.sender, link.balanceOf(address(this))), 'Unable to transfer');
     }
+
+
+    // Function to receive Ether. msg.data must be empty
+    receive() external payable {}
+
+    // Fallback function is called when msg.data is not empty
+    fallback() external payable {}
 
 }
 
