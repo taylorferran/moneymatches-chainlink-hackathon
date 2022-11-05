@@ -10,17 +10,19 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
 
     string public testOne;
     string public testTwo;
+    string public ran;
+    string public gameSettled;
 
     // link variables
     using Chainlink for Chainlink.Request;
     bytes32 private jobId;
     uint256 private fee;
 
-    event RequestWinner(bytes32 indexed requestId, string id);
+    event RequestWinner(bytes32 indexed requestId, string winner);
 
 
     uint gameCount = 1;
-    uint matchBeingProcessed;
+    uint public matchBeingProcessed;
 
     mapping (address => uint) public playerCurrentMatch;
     mapping (uint => Match) public matchList;
@@ -36,7 +38,7 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
     // Need to find the correct addresses for mumbai, and job id
     constructor() ConfirmedOwner(msg.sender) {
         setChainlinkToken(0x326C977E6efc84E512bB9C30f76E30c160eD06FB);
-        setChainlinkOracle(0x40193c8518BB267228Fc409a613bDbD8eC5a97b3);
+        setChainlinkOracle(0xCC79157eb46F5624204f47AB42b3906cAA40eaB7);
         jobId = '7d80a6386ef543a3abb52817f6707e3b';
         fee = (1 * LINK_DIVISIBILITY) / 10; // 0,1 * 10**18 (Varies by network and job)
     }
@@ -95,9 +97,12 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         uint256 wagerToReturn = matchToProcess.wager;
         matchToProcess.paidOut = true;
         matchList[_gameID] = matchToProcess;
-        //address winner = 0x26fA48f0407DBa513d7AD474e95760794e5D698E; //_winner;
         (bool sent,) = matchToProcess.winner.call{value : wagerToReturn}("");
-        require(sent);
+        if(sent) {
+            gameSettled = "sent";
+        } else {
+            gameSettled = "not sent";
+        }
     }
 
     function cancelGameBeforeItHasBeenAccepted(uint _gameID) public {
@@ -116,7 +121,7 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         matchList[_gameID].wager = 0;
         //transfer funds back to hero
         (bool sent,) = msg.sender.call{value : wagerToReturn}("");
-        require(sent);
+
     }
 
     // LINK FUNCTIONS
@@ -132,12 +137,11 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         require(matchList[_gameID].paidOut == false);
 
         // Set the URL to perform the GET request on
-        //req.add('get', 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=10');
-        req.add('get', 'https://api.jsonbin.io/v3/qs/636391452b3499323bf3d6a7');
-        
-        
+        req.add('get', 'https://api.jsonbin.io/v3/b/6364c96f65b57a31e6acb928');
+
         string memory requestString = string.concat('record,', Strings.toString(_gameID), ',winner');
         testTwo = requestString;
+        ran = "requested";
         req.add('path', requestString);
 
         matchBeingProcessed = _gameID;
@@ -152,9 +156,14 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         emit RequestWinner(_requestId, _winner);
         testOne = _winner;
         settleGame(matchBeingProcessed, _winner);
+        ran = "triedToFill";
+
         matchBeingProcessed = 0;
     }
 
+    function cancelMatchBeingProcessed() public onlyOwner {
+        matchBeingProcessed = 0;
+    }
 
     function parseAddr(string memory _a) internal pure returns (address _parsedAddress) {
         bytes memory tmp = bytes(_a);
