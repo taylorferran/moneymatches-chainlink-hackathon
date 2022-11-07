@@ -8,8 +8,12 @@ import { MONEYMATCHES_ADDRESS, abi } from "../constants";
 export default function Home() {
   const [walletConnected, setWalletConnected] = useState(false);
   const web3ModalRef = useRef();
-  const [viewWagerAmount, setWagerAmount] = useState("test");
-  const [viewGameID, setGameID] = useState("test");
+  const [viewWagerAmount, setWagerAmount] = useState("");
+  const [viewGameID, setGameID] = useState("");
+  const [viewHeroForGameSelected, setHeroForGameSelected] = useState("");
+  const [viewVillainForGameSelected, setVillainForGameSelected] = useState("");
+  const [viewWagerForGameSelected, setWagerForGameSelected] = useState("");
+  const [viewPaidOutForGameSelected, setPaidOutForGameSelected] = useState("");
 
   const wagerAmount = event => {
     setWagerAmount(event.target.value);
@@ -98,8 +102,14 @@ export default function Home() {
         );
         const tx = await moneymatchesContract.matchList(String(viewGameID));
 
+        setHeroForGameSelected(tx[0]);
+        setVillainForGameSelected(tx[1]);
+        setWagerForGameSelected(tx[2]);
+        setPaidOutForGameSelected(tx[4]);
+        console.log(viewVillainForGameSelected === "0x0000000000000000000000000000000000000000");
+
         if(tx) {
-          alert(tx);
+          //alert(tx);
         }
         alert
       } catch (err) {
@@ -141,19 +151,42 @@ export default function Home() {
       }
     };
 
-  /*
-    connectWallet: Connects the MetaMask wallet
-  */
+    const canJoinGame = async () => { 
+
+      try {
+      if(viewVillainForGameSelected === "0x0000000000000000000000000000000000000000") {
+          return true;
+        }
+        else {
+          return false;
+        }
+      } catch(err) {
+        console.error(err);
+      }
+
+    };
   const connectWallet = async () => {
     try {
-      // Get the provider from web3Modal, which in our case is MetaMask
-      // When used for the first time, it prompts the user to connect their wallet
       await getProviderOrSigner();
       setWalletConnected(true);
 
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const connectWalletButton = () => {
+    if (walletConnected) {
+      return (
+        (null)
+      );
+  } else {
+    return (
+      <button onClick={connectWallet} className={styles.button}>
+        Connect your wallet
+      </button>
+    );
+  }
   };
 
   const createGameButton = () => {
@@ -174,15 +207,35 @@ export default function Home() {
     const viewGameButton = () => {
       if (walletConnected) {
           return (
-            <button onClick={viewGame} className={styles.button}>
-              View Game Details
-            </button>
+            <div>
+              <button onClick={viewGame} className={styles.button}>
+                View Game Details
+              </button>
+              <table>
+                <tr>
+                  <th>Hero</th>
+                  <td>{String(viewHeroForGameSelected)}</td>
+                </tr>
+                <tr>
+                  <th>Villain</th>
+                  <td>{String(viewVillainForGameSelected)}</td>
+                </tr>
+                <tr>
+                  <th>Wager</th>
+                  <td>{String(viewWagerForGameSelected)}</td>
+                </tr>
+                <tr>
+                  <th>Paid Out</th>
+                  <td>{String(viewPaidOutForGameSelected)}</td>
+                </tr>
+            </table>
+          </div>
           );
       }
     };
 
     const acceptGameButton = () => {
-      if (walletConnected) {
+      if (canJoinGame) {
           return (
             <button onClick={acceptGame} className={styles.button}>
               Accept game
@@ -190,9 +243,7 @@ export default function Home() {
           );
       } else {
         return (
-          <button onClick={connectWallet} className={styles.button}>
-            Connect your wallet
-          </button>
+          (null)
         );
       }
     };
@@ -204,13 +255,7 @@ export default function Home() {
               Cancel game
             </button>
           );
-      } else {
-        return (
-          <button onClick={connectWallet} className={styles.button}>
-            Connect your wallet
-          </button>
-        );
-      }
+      } 
     };
   
     const settleGameButton = () => {
@@ -220,20 +265,43 @@ export default function Home() {
               Settle game
             </button>
           );
-      } else {
-        return (
-          <button onClick={connectWallet} className={styles.button}>
-            Connect your wallet
-          </button>
-        );
+      } 
+    };
+
+    const launchGameButton = () => {
+      if (walletConnected) {
+          return (
+          <a href="http://localhost:3001/multiplayer" target="_blank" class="btn btn-primary">Launch Game</a>
+          );
+      }
+    };
+
+    const wagerInput = () => {
+      if (walletConnected) {
+          return (
+            <input
+            placeholder="Wager"
+            onChange={wagerAmount}
+            className={styles.input}
+            />
+          );
+      }
+    };
+
+    const gameIdInput = () => {
+      if (walletConnected) {
+          return (
+            <input
+            placeholder="GameID"
+            onChange={gameID}
+            className={styles.input}
+            />
+          );
       }
     };
 
   useEffect(() => {
-    // if wallet is not connected, create a new instance of Web3Modal and connect the MetaMask wallet
     if (!walletConnected) {
-      // Assign the Web3Modal class to the reference object by setting it's `current` value
-      // The `current` value is persisted throughout as long as this page is open
       web3ModalRef.current = new Web3Modal({
         network: "goerli",
         providerOptions: {},
@@ -252,27 +320,26 @@ export default function Home() {
       </Head>
       <div className={styles.main}>
         <div>
-          <h1 className={styles.title}>This is a moneymatches dapp</h1>
+          
+          <h1 className={styles.title}>Money Matches</h1>
           <div className={styles.description}>
             It's an onchain pvp framework.
           </div>
-          <input
-            placeholder="Wager"
-            onChange={wagerAmount}
-            className={styles.input}
-            />
+          </div>
+          {connectWalletButton()}
+          {wagerInput()}
           {createGameButton()}
-          <input
-            placeholder="Game ID"
-            onChange={gameID}
-            className={styles.input}
-            />
-        </div>
+          <div>
+          <p>   </p>
+          </div>
+          {gameIdInput()}
           {viewGameButton()}
           {acceptGameButton()}
           {cancelGameButton()}
           {settleGameButton()}
       </div>
+      <div className={styles.main}>      {launchGameButton()}
+    </div>
     </div>
   );
 }
