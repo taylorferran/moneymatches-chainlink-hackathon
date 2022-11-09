@@ -208,10 +208,7 @@ export default function Home() {
       if (walletConnected) {
           return (
             <div>
-              <button onClick={viewGame} className={styles.button}>
-                View Game Details
-              </button>
-              <table>
+              <table className={styles.center}>
                 <tr>
                   <th>Hero</th>
                   <td>{String(viewHeroForGameSelected)}</td>
@@ -237,9 +234,19 @@ export default function Home() {
     const acceptGameButton = () => {
       if (canJoinGame) {
           return (
+            <div className={styles.buttonSpace}>
             <button onClick={acceptGame} className={styles.button}>
               Accept game
             </button>
+
+            <button onClick={cancelGame} className={styles.button}>
+              Cancel game
+            </button>
+
+            <button onClick={settleGame} className={styles.button}>
+              Settle game
+            </button>
+            </div>
           );
       } else {
         return (
@@ -248,30 +255,11 @@ export default function Home() {
       }
     };
 
-    const cancelGameButton = () => {
-      if (walletConnected) {
-          return (
-            <button onClick={cancelGame} className={styles.button}>
-              Cancel game
-            </button>
-          );
-      } 
-    };
-  
-    const settleGameButton = () => {
-      if (walletConnected) {
-          return (
-            <button onClick={settleGame} className={styles.button}>
-              Settle game
-            </button>
-          );
-      } 
-    };
 
     const launchGameButton = () => {
       if (walletConnected) {
           return (
-          <a href="http://localhost:3001/multiplayer" target="_blank" class="btn btn-primary">Launch Game</a>
+          <a href="http://localhost:3001/multiplayer" target="_blank" >Launch Game</a>
           );
       }
     };
@@ -279,11 +267,16 @@ export default function Home() {
     const wagerInput = () => {
       if (walletConnected) {
           return (
-            <input
-            placeholder="Wager"
-            onChange={wagerAmount}
-            className={styles.input}
-            />
+            <div>
+              <input
+                placeholder="Wager"
+                onChange={wagerAmount}
+                className={styles.input}
+              />
+              <button onClick={createGame} class = "center">
+                Create game
+              </button>
+            </div>
           );
       }
     };
@@ -291,11 +284,16 @@ export default function Home() {
     const gameIdInput = () => {
       if (walletConnected) {
           return (
+            <div>
             <input
             placeholder="GameID"
             onChange={gameID}
             className={styles.input}
             />
+            <button onClick={viewGame} class="center">
+                View Game Details
+              </button>
+            </div>
           );
       }
     };
@@ -323,22 +321,23 @@ export default function Home() {
           
           <h1 className={styles.title}>Money Matches</h1>
           <div className={styles.description}>
-            It's an onchain pvp framework.
+            It's an onchain pvp matchmaking framework.
           </div>
           </div>
           {connectWalletButton()}
           {wagerInput()}
-          {createGameButton()}
           <div>
-          <p>   </p>
+          <p></p>
           </div>
           {gameIdInput()}
+          <p></p>
           {viewGameButton()}
+          <p></p>
           {acceptGameButton()}
-          {cancelGameButton()}
-          {settleGameButton()}
+          <p></p>
+          {launchGameButton()}
       </div>
-      <div className={styles.main}>      {launchGameButton()}
+      <div>
     </div>
     </div>
   );

@@ -42,8 +42,23 @@
 .title {
   margin: 0;
   line-height: 1.15;
-  font-size: 4rem;
+  font-size: 8rem;
 }
+
+.button {
+  line-height: 2;
+  margin: 0 10px;
+  margin-top: 100;
+  margin-bottom: 100;
+}
+
+.buttonSpace {
+  line-height: 2;
+  margin: 0 10px;
+  margin-top: 100;
+  margin-bottom: 100;
+}
+
 
 .title,
 .description {
@@ -52,8 +67,8 @@
 
 .description {
   margin: 4rem 0;
-  line-height: 1.5;
-  font-size: 1.5rem;
+  line-height: 1;
+  font-size: 1rem;
 }
 
 .code {
@@ -127,3 +142,12 @@
     filter: invert(1);
   }
 }
+
+
+.center {
+  justify-content: center;
+  text-align: center;
+  }
+
+
+
