@@ -13,6 +13,7 @@ export default function Home() {
   const [viewHeroForGameSelected, setHeroForGameSelected] = useState("");
   const [viewVillainForGameSelected, setVillainForGameSelected] = useState("");
   const [viewWagerForGameSelected, setWagerForGameSelected] = useState("");
+  const [viewWinnerForGameSelected, setWinnerForGameSelected] = useState("");
   const [viewPaidOutForGameSelected, setPaidOutForGameSelected] = useState("");
 
   const wagerAmount = event => {
@@ -53,9 +54,6 @@ export default function Home() {
         signer
       );
       
-      const oneEther = BigNumber.from("1000000000000000000");
-      //const value = utils.formatEther(viewWagerAmount);
-
       
       const value = utils.parseUnits(viewWagerAmount, "ether");
       const tx = await moneymatchesContract.createGame(value, {
@@ -105,12 +103,10 @@ export default function Home() {
         setHeroForGameSelected(tx[0]);
         setVillainForGameSelected(tx[1]);
         setWagerForGameSelected(tx[2]);
+        setWinnerForGameSelected(tx[3]);
         setPaidOutForGameSelected(tx[4]);
         console.log(viewVillainForGameSelected === "0x0000000000000000000000000000000000000000");
 
-        if(tx) {
-          //alert(tx);
-        }
         alert
       } catch (err) {
         console.error(err);
@@ -154,7 +150,7 @@ export default function Home() {
     const canJoinGame = async () => { 
 
       try {
-      if(viewVillainForGameSelected === "0x0000000000000000000000000000000000000000") {
+      if(String(viewVillainForGameSelected) === "0x0000000000000000000000000000000000000000") {
           return true;
         }
         else {
@@ -165,11 +161,44 @@ export default function Home() {
       }
 
     };
+
+    const canCancelGame = async () => { 
+
+      try {
+      if(String(viewHeroForGameSelected) === "TODO put wallet connected address here"
+        && viewPaidOutForGameSelected === false
+        && viewWagerForGameSelected > 0
+        ) {
+          return true;
+        }
+        else {
+          return false;
+        }
+      } catch(err) {
+        console.error(err);
+      }
+
+    };
+    
+    const canSettleGame = async () => { 
+
+      try {
+      if(String(viewW) === "0x0000000000000000000000000000000000000000") {
+          return true;
+        }
+        else {
+          return false;
+        }
+      } catch(err) {
+        console.error(err);
+      }
+
+    };
+
   const connectWallet = async () => {
     try {
       await getProviderOrSigner();
       setWalletConnected(true);
-
     } catch (err) {
       console.error(err);
     }
@@ -208,22 +237,26 @@ export default function Home() {
       if (walletConnected) {
           return (
             <div>
-              <table className={styles.center}>
+              <table>
                 <tr>
                   <th>Hero</th>
-                  <td>{String(viewHeroForGameSelected)}</td>
+                  <td className={styles.center}>{String(viewHeroForGameSelected)}</td>
                 </tr>
                 <tr>
                   <th>Villain</th>
-                  <td>{String(viewVillainForGameSelected)}</td>
+                  <td className={styles.center}>{String(viewVillainForGameSelected)}</td>
                 </tr>
                 <tr>
                   <th>Wager</th>
-                  <td>{String(viewWagerForGameSelected)}</td>
+                  <td className={styles.center}>{String(viewWagerForGameSelected)}</td>
+                </tr>
+                <tr>
+                  <th>Winner</th>
+                  <td className={styles.center}>{String(viewWinnerForGameSelected)}</td>
                 </tr>
                 <tr>
                   <th>Paid Out</th>
-                  <td>{String(viewPaidOutForGameSelected)}</td>
+                  <td className={styles.center}>{String(viewPaidOutForGameSelected)}</td>
                 </tr>
             </table>
           </div>
@@ -232,7 +265,10 @@ export default function Home() {
     };
 
     const acceptGameButton = () => {
-      if (canJoinGame) {
+
+      console.log(canJoinGame());
+
+      if (canJoinGame()) {
           return (
             <div className={styles.buttonSpace}>
             <button onClick={acceptGame} className={styles.button}>
@@ -317,12 +353,9 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <div className={styles.main}>
-        <div>
-          
           <h1 className={styles.title}>Money Matches</h1>
           <div className={styles.description}>
-            It's an onchain pvp matchmaking framework.
-          </div>
+            It's an onchain pvp matchmaking framework
           </div>
           {connectWalletButton()}
           {wagerInput()}
