@@ -2,9 +2,10 @@ import requests
 import json
 import sys
 
-url = 'https://api.jsonbin.io/v3/b/63647dfa0e6a79321e3e9fde/latest'
+url = 'https://api.jsonbin.io/v3/b/6364c96f65b57a31e6acb928'
 headers = {
-  'X-Master-Key': #####
+  'Content-Type': 'application/json'
+}
 
 gameid = sys.argv[1]
 winner = sys.argv[2]
@@ -16,26 +17,17 @@ print(req.text)
 print("\n")
 
 jsonobj = req.json()
-data = jsonobj["record"]
-#data["winner"].append("0x0")
-#data += ("winner : ")
 
-print(data)
+print(jsonobj["record"][int(gameid)])
 
 print("\n")
 
-testJson = json.dumps(data)
-testJson2 = json.loads(testJson)
-
-x = {gameid : winner}
-
-testJson2.update(x)
-
-print(testJson2)
+jsonobj["record"][int(gameid)]  = {"winner" : winner}
 
 
-url = 'https://api.jsonbin.io/v3/b/63647dfa0e6a79321e3e9fde'
+url = 'https://api.jsonbin.io/v3/b/6364c96f65b57a31e6acb928'
 headers = {
-  'Content-Type': 'application/json',
-  'X-Master-Key': ####
-req = requests.put(url, json=testJson2, headers=headers)
+  #'X-Master-Key': 
+  'Content-Type': 'application/json'
+}
+req = requests.put(url, json=jsonobj["record"], headers=headers)

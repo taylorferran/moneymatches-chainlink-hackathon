@@ -13,14 +13,14 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
     string public ran;
     string public gameSettled;
 
-    // link variables
+    // Link variables
     using Chainlink for Chainlink.Request;
     bytes32 private jobId;
     uint256 private fee;
 
     event RequestWinner(bytes32 indexed requestId, string winner);
 
-
+    // To keep track of 
     uint gameCount = 1;
     uint public matchBeingProcessed;
 
@@ -46,8 +46,11 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
 
     function createGame(uint256 _wager) public payable returns(uint)
     {
+        // Check right amount of eth sent
         require(msg.value >= _wager);
+        // Check player isn't already in a game
         require(playerCurrentMatch[msg.sender] == 0);
+        // Create new match struct and add our address
         Match memory newMatch = Match (
         {
             Hero : payable(msg.sender),
@@ -58,6 +61,7 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         });
         // Add match data to mapping,
         matchList[gameCount] = newMatch;
+        // Assign this match to our address
         playerCurrentMatch[msg.sender] = gameCount;
         //send eth to contract
         (bool sent,) = address(this).call{value : _wager}("");
@@ -68,23 +72,27 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
 
     function acceptGame(uint _gameID) public payable
     {
+        // Store match in a local variable
         Match memory matchToAccept = matchList[_gameID];
+        // Check we have enough to wager
         require(msg.sender.balance >= matchToAccept.wager);
+        // Check player isn't already in a game
         require(playerCurrentMatch[msg.sender] == 0);
         // Set villain to the challenger
         matchToAccept.Villain = payable(msg.sender);
-        // Now we have wagers from both players
+        // Add wager from villain
         matchToAccept.wager += matchToAccept.wager;
+        // Assign local variable to storage
         matchList[_gameID] = matchToAccept;
+        // Assign this match to our address
         playerCurrentMatch[msg.sender] = _gameID;
-        //send eth to contract
+        // Send eth to contract
         (bool sent,) = address(this).call{value : matchToAccept.wager}("");
         require(sent);
     }
 
- 
-    // Somehow we need to update the winner to hero or villain
-    // Then they can call this function to withdraw their wager
+
+    // Called by the function which fullfils our link request
     function settleGame(uint _gameID, string memory _winner) public {
 
         Match memory matchToProcess = matchList[_gameID];
@@ -98,13 +106,11 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         matchToProcess.paidOut = true;
         matchList[_gameID] = matchToProcess;
         (bool sent,) = matchToProcess.winner.call{value : wagerToReturn}("");
-        if(sent) {
-            gameSettled = "sent";
-        } else {
-            gameSettled = "not sent";
-        }
+        require(sent);
     }
 
+    // Allow the hero to cancel the game and remove their wager before
+    // the game as been accepted by anyone 
     function cancelGameBeforeItHasBeenAccepted(uint _gameID) public {
 
         Match memory matchToCancel = matchList[_gameID];
@@ -126,10 +132,8 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
 
     // LINK FUNCTIONS
    
-    /**
-     * Create a Chainlink request to retrieve API response, find the target
-     * data which is located in a list
-     */
+    // Here we pass in the gameID once it has finished, it will then get the corresponding
+    // match stored in our json bin, 
     function requestWinnerFromGameID(uint _gameID) public returns (bytes32 requestId) {
         Chainlink.Request memory req = buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
 
@@ -140,31 +144,31 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         req.add('get', 'https://api.jsonbin.io/v3/b/6364c96f65b57a31e6acb928');
 
         string memory requestString = string.concat('record,', Strings.toString(_gameID), ',winner');
-        testTwo = requestString;
-        ran = "requested";
         req.add('path', requestString);
 
+        // Currently we only allow for one game to be processed at a time, we set the gameID
+        // we want to process here so we can use it in the fulfill function
         matchBeingProcessed = _gameID;
 
         return sendChainlinkRequest(req, fee);
     }
 
-    /**
-     * Receive the response in the form of string
-     */
+    // Receive response as a string, use this to assign the winner and settle the game
     function fulfill(bytes32 _requestId, string memory _winner) public recordChainlinkFulfillment(_requestId) {
         emit RequestWinner(_requestId, _winner);
-        testOne = _winner;
         settleGame(matchBeingProcessed, _winner);
-        ran = "triedToFill";
-
+        // Set match being processed to 0 so another 
         matchBeingProcessed = 0;
     }
 
+    // Just in case something goes wrong with the fulfill function, we can use this
+    // to reset matchBeingProcessed to 0 to avoid a deadlock
     function cancelMatchBeingProcessed() public onlyOwner {
         matchBeingProcessed = 0;
     }
 
+    // Helper function because we're getting the address as a string. From old oracilize/provable 
+    // code but I could not find it anywhere except stackoverflow so just pasted it in lol
     function parseAddr(string memory _a) internal pure returns (address _parsedAddress) {
         bytes memory tmp = bytes(_a);
         uint160 iaddr = 0;
@@ -193,9 +197,7 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         return address(iaddr);
     }
 
-    /**
-     * Allow withdraw of Link tokens from the contract
-     */
+
     function withdrawLink() public onlyOwner {
         LinkTokenInterface link = LinkTokenInterface(chainlinkTokenAddress());
         require(link.transfer(msg.sender, link.balanceOf(address(this))), 'Unable to transfer');
@@ -206,10 +208,7 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         require(sent);
     }
 
-    // Function to receive Ether. msg.data must be empty
     receive() external payable {}
-
-    // Fallback function is called when msg.data is not empty
     fallback() external payable {}
 
 }
