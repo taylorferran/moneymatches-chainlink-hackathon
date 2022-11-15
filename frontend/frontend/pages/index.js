@@ -267,9 +267,8 @@ export default function Home() {
       const canJoinGameX = canJoinGame();
       
       console.log(canJoinGameX);
-      if (canJoinGameX === 0) {
+      if (true) {
 
-        console.log('AAAAAAAA');
           return (
             <div className={styles.buttonSpace}>
             <button onClick={acceptGame} className={styles.button}>
