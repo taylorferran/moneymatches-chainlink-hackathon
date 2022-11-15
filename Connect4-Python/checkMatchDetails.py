@@ -1,3 +1,16 @@
+##########################################################################################
+# This is a script to do some verification on whether a valid match can be played or not. #
+#                                                                                         #
+# Game cannot start if:                                                                  #
+# - Hero address isn't correct                                                          #
+# - Villain address isn't correct                                                      #
+# - Match has been paid out already                                                     #
+# - Match has been played already                                                         #
+#                                                                                         #
+# The first three we verify by reading off of the smart contract using web3 py, the last #
+# we just check the json bin to see if there's a winner for this match yet.             #
+######################################################################################## 
+
 import sys
 import web3
 import requests
@@ -396,8 +409,6 @@ abi = [
     }
   ]
 
-
-
 def main():
 
   url = 'https://api.jsonbin.io/v3/b/6364c96f65b57a31e6acb928'
@@ -406,7 +417,6 @@ def main():
   }
 
   canPlayGame = True
-
 
   req = requests.get(url, json=None, headers=headers)
   jsonobj = req.json()
@@ -425,10 +435,7 @@ def main():
   moneyMatchesContract = "0x67624afC73c953B69Bc0d9C5C3c829253BeC75D7"
   moneyMatches = w3.eth.contract(address=moneyMatchesContract, abi=abi)
 
-
   gameDetails = moneyMatches.functions.matchList((int(gameid, 0))).call()
-
-  print(gameDetails)
 
 
   if (gameDetails[0] == hero):
@@ -450,8 +457,6 @@ def main():
   else:
       print("GAME ALREADY PAID OUT")
       canPlayGame = False
-
-  print(canPlayGame)
   sys.exit(canPlayGame)
 
 

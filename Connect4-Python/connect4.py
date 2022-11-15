@@ -1,3 +1,13 @@
+####################################################################
+# The game here is not mine, it's under MIT license so I have 		#
+# just built around it to show off the framework. The only things	#
+# I added to this are inputs for the gameID, hero, and villain,		#
+# checks so that you need a valid, playable game created in my 		#
+# smart contract to play, and that the winner is automatically 		#
+# pushed to the json bin. Most of this is done in the other scripts #
+# I created and we just call into them from here.					#
+####################################################################
+
 import numpy as np
 import pygame
 import sys
@@ -9,20 +19,15 @@ gameid = sys.argv[1]
 hero = sys.argv[2]
 villain = sys.argv[3]
 
-# Here we will verify whether these two players can join at this match ID
-
-# Check hero address is that of that game id
-# Same with villain
-# If OK then start game, if not quit
-
 canPlayGame = call(["python3", "./checkMatchDetails.py"]  + sys.argv[1:]  + sys.argv[2:]  + sys.argv[3:])
 
 if(canPlayGame == False):
 	print("GAME DETAILS INVALID, PLEASE TRY STARTING A VALID GAME")
 	quit()
 
-
-
+#####
+# NOT MY CODE UNDER THIS EXCEPT LINES 154+172
+#####
 
 BLUE = (0,0,255)
 BLACK = (0,0,0)

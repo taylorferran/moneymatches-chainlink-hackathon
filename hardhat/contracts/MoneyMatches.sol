@@ -5,13 +5,14 @@ import '@chainlink/contracts/src/v0.8/ChainlinkClient.sol';
 import '@chainlink/contracts/src/v0.8/ConfirmedOwner.sol';
 import '@openzeppelin/contracts/utils/Strings.sol';
 
-contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
-    
+/// @title Money Matches first attempt
+/// @author Taylor Ferran
+/// @notice A system which lets a player(hero) create a wager match which can be accepted by another player(villain) and played off chain.
+/// Payment is then settled on chain with a link API call to determine who is the winner. 
+/// @dev Current prototype is NOT scalable or has been secured - lots to improve in those regards!
+/// also need to add game timeout functionality for games which are accepted but never played
 
-    string public testOne;
-    string public testTwo;
-    string public ran;
-    string public gameSettled;
+contract MoneyMatches is ChainlinkClient, ConfirmedOwner {  
 
     // Link variables
     using Chainlink for Chainlink.Request;
@@ -20,8 +21,10 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
 
     event RequestWinner(bytes32 indexed requestId, string winner);
 
-    // To keep track of 
+    // To keep track of which game to create next
     uint gameCount = 1;
+
+    // Currently we can only process one game at a time
     uint public matchBeingProcessed;
 
     mapping (address => uint) public playerCurrentMatch;
@@ -35,7 +38,8 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         bool paidOut;
     }
 
-    // Need to find the correct addresses for mumbai, and job id
+    // We're passing in Goerli testnet Link values here
+    // The job id is the Link Array Response job
     constructor() ConfirmedOwner(msg.sender) {
         setChainlinkToken(0x326C977E6efc84E512bB9C30f76E30c160eD06FB);
         setChainlinkOracle(0xCC79157eb46F5624204f47AB42b3906cAA40eaB7);
@@ -44,6 +48,8 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
     }
 
 
+    /// @notice This function is used to create a game on chain
+    /// @param _wager is the amount of eth the player wants to wager
     function createGame(uint256 _wager) public payable returns(uint)
     {
         // Check right amount of eth sent
@@ -63,19 +69,29 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         matchList[gameCount] = newMatch;
         // Assign this match to our address
         playerCurrentMatch[msg.sender] = gameCount;
-        //send eth to contract
+        //send eth to contract for wager
         (bool sent,) = address(this).call{value : _wager}("");
         require(sent);
         ++gameCount;
         return(gameCount);
     }
 
+    /// @notice This function is used to accept a game that has been created
+    /// @param _gameID is the game which the player wants to accept
+    /// @dev Defo need more checks here to stop the hero accepting their own game, people accepting old games etc,
+    /// our happy path works fine but we need more stringent ways to stop user errors
     function acceptGame(uint _gameID) public payable
     {
         // Store match in a local variable
         Match memory matchToAccept = matchList[_gameID];
         // Check we have enough to wager
         require(msg.sender.balance >= matchToAccept.wager);
+        // Ensure hero isn't accepting their own game
+        require(matchToAccept.Hero != msg.sender);
+        // Ensure game hasn't been paid out
+        require(matchToAccept.paidOut == false);
+        // Ensure game hasn't been accepted already 
+        require(matchToAccept.Villain == 0x0000000000000000000000000000000000000000); 
         // Check player isn't already in a game
         require(playerCurrentMatch[msg.sender] == 0);
         // Set villain to the challenger
@@ -92,7 +108,9 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
     }
 
 
-    // Called by the function which fullfils our link request
+    /// @notice Called by the function which fullfils our link request
+    /// @param _gameID is the current game being processed 
+    /// @param _winner is the string value returned from the link api call
     function settleGame(uint _gameID, string memory _winner) public {
 
         Match memory matchToProcess = matchList[_gameID];
@@ -109,8 +127,8 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         require(sent);
     }
 
-    // Allow the hero to cancel the game and remove their wager before
-    // the game as been accepted by anyone 
+    /// @notice This is for the hero to cancel their game and get their money back
+    /// @param _gameID is the game the player wants to cancel
     function cancelGameBeforeItHasBeenAccepted(uint _gameID) public {
 
         Match memory matchToCancel = matchList[_gameID];
@@ -130,19 +148,21 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
 
     }
 
-    // LINK FUNCTIONS
+    // Functions using Link
    
-    // Here we pass in the gameID once it has finished, it will then get the corresponding
-    // match stored in our json bin, 
+    /// @notice This function makes an api call to our json bin to get the winner address of the game, only hero/villain from the game can call it
+    /// @param _gameID is the game the player wants to settle
     function requestWinnerFromGameID(uint _gameID) public returns (bytes32 requestId) {
         Chainlink.Request memory req = buildChainlinkRequest(jobId, address(this), this.fulfill.selector);
 
+        require(matchList[_gameID].Hero == msg.sender || matchList[_gameID].Villain == msg.sender);
         require(matchBeingProcessed == 0);
         require(matchList[_gameID].paidOut == false);
 
         // Set the URL to perform the GET request on
         req.add('get', 'https://api.jsonbin.io/v3/b/6364c96f65b57a31e6acb928');
 
+        // Our gameID matches up sequentially to the json bin, so we can get the correct entry this way
         string memory requestString = string.concat('record,', Strings.toString(_gameID), ',winner');
         req.add('path', requestString);
 
@@ -153,7 +173,7 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         return sendChainlinkRequest(req, fee);
     }
 
-    // Receive response as a string, use this to assign the winner and settle the game
+    /// @notice called after the link request, updates our storage and calls settle game to payout the winner
     function fulfill(bytes32 _requestId, string memory _winner) public recordChainlinkFulfillment(_requestId) {
         emit RequestWinner(_requestId, _winner);
         settleGame(matchBeingProcessed, _winner);
@@ -167,8 +187,7 @@ contract MoneyMatches is ChainlinkClient, ConfirmedOwner {
         matchBeingProcessed = 0;
     }
 
-    // Helper function because we're getting the address as a string. From old oracilize/provable 
-    // code but I could not find it anywhere except stackoverflow so just pasted it in lol
+    // Helper function because we're getting the address as a string
     function parseAddr(string memory _a) internal pure returns (address _parsedAddress) {
         bytes memory tmp = bytes(_a);
         uint160 iaddr = 0;
