@@ -304,7 +304,7 @@ export default function Home() {
             />
             <span> &nbsp; </span>
             <button onClick={viewGame} class="center">
-                View Game
+                Search Game
               </button>
             </div>
           );
