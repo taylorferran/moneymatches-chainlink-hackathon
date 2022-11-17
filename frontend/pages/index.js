@@ -9,7 +9,8 @@ export default function Home() {
   const [walletConnected, setWalletConnected] = useState(false);
   const web3ModalRef = useRef();
   const [viewWagerAmount, setWagerAmount] = useState("");
-  const [viewGameID, setGameID] = useState("");
+  const [viewGameIdInput, setGameIdInput] = useState("");
+  const [viewGameIdSelected, setGameIdSelected] = useState("");
   const [viewHeroForGameSelected, setHeroForGameSelected] = useState("");
   const [viewVillainForGameSelected, setVillainForGameSelected] = useState("");
   const [viewWagerForGameSelected, setWagerForGameSelected] = useState("");
@@ -21,12 +22,10 @@ export default function Home() {
   };
 
   const gameID = event => {
-    setGameID(event.target.value);
+    setGameIdInput(event.target.value);
   };
 
   const getProviderOrSigner = async (needSigner = false) => {
-    // Connect to Metamask
-    // Since we store `web3Modal` as a reference, we need to access the `current` value to get access to the underlying object
     const provider = await web3ModalRef.current.connect();
     const web3Provider = new providers.Web3Provider(provider);
 
@@ -61,6 +60,7 @@ export default function Home() {
       });
       
       await tx.wait();
+
     } catch (err) {
       console.error(err);
     }
@@ -76,10 +76,9 @@ export default function Home() {
         signer
       );
       
-      const gameData = await moneymatchesContract.matchList(String(viewGameID));
+      const gameData = await moneymatchesContract.matchList(String(viewGameIdSelected));
 
-      //const value = 0.001 * 1;
-      const tx = await moneymatchesContract.acceptGame(String(viewGameID), {
+      const tx = await moneymatchesContract.acceptGame(String(viewGameIdSelected), {
         value: gameData[2],
       });
 
@@ -98,8 +97,41 @@ export default function Home() {
           abi,
           provider
         );
-        const tx = await moneymatchesContract.matchList(String(viewGameID));
+        const tx = await moneymatchesContract.matchList(String(viewGameIdInput));
 
+        console.log(tx[2]);
+
+        const x = tx[2] / (10 ** 18);
+        console.log(x);
+
+        setGameIdSelected(viewGameIdInput);
+        setHeroForGameSelected(tx[0]);
+        setVillainForGameSelected(tx[1]);
+        setWagerForGameSelected(tx[2] / (10 ** 18));
+        setWinnerForGameSelected(tx[3]);
+        setPaidOutForGameSelected(tx[4]);
+
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    const viewUserCurrentGame = async () => {
+      try {
+        const signer = await getProviderOrSigner(true);
+        const moneymatchesContract = new Contract(
+          MONEYMATCHES_ADDRESS,
+          abi,
+          signer
+        );
+
+        const address = await signer.getAddress();
+
+        const gameID = await moneymatchesContract.playerCurrentMatch(String(address));
+
+        const tx = await moneymatchesContract.matchList(String(gameID));
+
+        setGameIdSelected(gameID);
         setHeroForGameSelected(tx[0]);
         setVillainForGameSelected(tx[1]);
         setWagerForGameSelected(tx[2]);
@@ -121,7 +153,7 @@ export default function Home() {
           signer
         );
   
-        const tx = await moneymatchesContract.requestWinnerFromGameID(String(viewGameID));
+        const tx = await moneymatchesContract.requestWinnerFromGameID(String(viewGameIdSelected));
         await tx.wait();
       } catch (err) {
         console.error(err);
@@ -137,61 +169,14 @@ export default function Home() {
           abi,
           signer
         );
-  
-        const tx = await moneymatchesContract.cancelGameBeforeItHasBeenAccepted(String(viewGameID));
+
+        const tx = await moneymatchesContract.cancelGameBeforeItHasBeenAccepted(String(viewGameIdSelected));
         await tx.wait();
       } catch (err) {
         console.error(err);
       }
     };
 
-    const canJoinGame = async () => { 
-
-      try {
-      if(String(viewVillainForGameSelected) == "0x0000000000000000000000000000000000000000") {
-          return 0;
-        }
-        else {
-          return 1;
-        }
-      } catch(err) {
-        console.error(err);
-      }
-
-    };
-
-    const canCancelGame = async () => { 
-
-      try {
-      if(String(viewHeroForGameSelected) === "TODO put wallet connected address here"
-        && viewPaidOutForGameSelected === false
-        && viewWagerForGameSelected > 0
-        ) {
-          return true;
-        }
-        else {
-          return false;
-        }
-      } catch(err) {
-        console.error(err);
-      }
-
-    };
-    
-    const canSettleGame = async () => { 
-
-      try {
-      if(String(viewW) === "0x0000000000000000000000000000000000000000") {
-          return true;
-        }
-        else {
-          return false;
-        }
-      } catch(err) {
-        console.error(err);
-      }
-
-    };
 
   const connectWallet = async () => {
     try {
@@ -216,70 +201,67 @@ export default function Home() {
   }
   };
 
-  const createGameButton = () => {
-    if (walletConnected) {
-        return (
-          <button onClick={createGame} className={styles.button}>
-            Create game
-          </button>
-        );
-    } else {
-      return (
-        (null)
-      );
-    }
-  };
 
-
-    const viewGameButton = () => {
+    const matchDataTable = () => {
       if (walletConnected) {
-          return (
-            <div>
-              <table>
-                <tr>
-                  <th>Hero</th>
-                  <td className={styles.center}>{String(viewHeroForGameSelected)}</td>
-                </tr>
-                <tr>
-                  <th>Villain</th>
-                  <td className={styles.center}>{String(viewVillainForGameSelected)}</td>
-                </tr>
-                <tr>
-                  <th>Wager</th>
-                  <td className={styles.center}>{String(viewWagerForGameSelected)}</td>
-                </tr>
-                <tr>
-                  <th>Winner</th>
-                  <td className={styles.center}>{String(viewWinnerForGameSelected)}</td>
-                </tr>
-                <tr>
-                  <th>Paid Out</th>
-                  <td className={styles.center}>{String(viewPaidOutForGameSelected)}</td>
-                </tr>
-            </table>
+            return (
+              <div>
+                <table>
+                  <tr>
+                    <th>Game ID</th>
+                    <td className={styles.center}>{String(viewGameIdSelected)}</td>
+                  </tr>
+                  <tr>
+                    <th>Hero</th>
+                    <td className={styles.center}>{String(viewHeroForGameSelected)}</td>
+                  </tr>
+                  <tr>
+                    <th>Villain</th>
+                    <td className={styles.center}>{String(viewVillainForGameSelected)}</td>
+                  </tr>
+                  <tr>
+                    <th>Wager</th>
+                    <td className={styles.center}>{String(viewWagerForGameSelected)}</td>
+                  </tr>
+                  <tr>
+                    <th>Winner</th>
+                    <td className={styles.center}>{String(viewWinnerForGameSelected)}</td>
+                  </tr>
+                  <tr>
+                    <th>Paid Out</th>
+                    <td className={styles.center}>{String(viewPaidOutForGameSelected)}</td>
+                  </tr>
+              </table>
+            </div>
+            );
+        }
+      };
+
+      const acceptGameButton = () => {
+
+        if(walletConnected) {
+        return (
+          <div className={styles.buttonSpace}>
+          <button onClick={acceptGame} className={styles.button}>
+            Accept game
+          </button>
+    
+
+          <button onClick={cancelGame} className={styles.button}>
+            Cancel game
+          </button>
+
+          <button onClick={settleGame} className={styles.button}>
+            Settle game
+          </button>
+
+          <button onClick={viewUserCurrentGame} className={styles.button}>
+            Show my current game
+          </button>
+          
           </div>
-          );
+        );
       }
-    };
-
-    const acceptGameButton = () => {
-
-      return (
-        <div className={styles.buttonSpace}>
-        <button onClick={acceptGame} className={styles.button}>
-          Accept game
-        </button>
-  
-
-        <button onClick={cancelGame} className={styles.button}>
-          Cancel game
-        </button>
-
-        <button onClick={settleGame} className={styles.button}>
-          Settle game
-        </button>
-        </div>
-      );
     };
 
 
@@ -296,10 +278,12 @@ export default function Home() {
           return (
             <div>
               <input
-                placeholder="Wager"
+                placeholder="Enter wager in ETH"
                 onChange={wagerAmount}
                 className={styles.input}
+                class = "center"
               />
+              <span> &nbsp; </span>
               <button onClick={createGame} class = "center">
                 Create game
               </button>
@@ -313,12 +297,14 @@ export default function Home() {
           return (
             <div>
             <input
-            placeholder="GameID"
+            placeholder="Search game ID"
             onChange={gameID}
             className={styles.input}
+            class = "center"
             />
+            <span> &nbsp; </span>
             <button onClick={viewGame} class="center">
-                View Game Details
+                View Game
               </button>
             </div>
           );
@@ -355,11 +341,10 @@ export default function Home() {
           </div>
           {gameIdInput()}
           <p></p>
-          {viewGameButton()}
+          {matchDataTable()}
           <p></p>
           {acceptGameButton()}
           <p></p>
-          {launchGameButton()}
       </div>
       <div>
     </div>
