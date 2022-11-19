@@ -1,3 +1,5 @@
+https://devpost.com/software/money-matches
+
 Money Matches is a competitive gamefi project aimed at building a matchmaking platform. The goal for this project was to build a platform that lets two players create and accept a wager match by both putting up X amount of ETH, play the match out on another platform, then the winner can redeem their winningsn via the smart contract. The overall framework has been put in place for this, although it wasn't hooked up to an in browser game to have two players play online (this is the next step I'm currently working on).
 
 It's built and deployed on Goerli for the Chainlink hackathon.
